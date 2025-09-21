@@ -1,4 +1,4 @@
-# Instala paquetes necesarios solo si no los tienes
+# Instalar paquetes necesarios
 if (!require("plm")) install.packages("plm")
 if (!require("data.table")) install.packages("data.table")
 if (!require("corrplot")) install.packages("corrplot")
@@ -17,24 +17,22 @@ library(readxl)
 # ========================
 # Cargar base de datos
 # ========================
-data <- read_excel("C:\\Users\\EDER3\\OneDrive\\NACHO\\Investigacion China - COLOMBIA\\Modelo\\Datos modelo.xlsx")
+data <- read_excel(ruta)
 
 # ========================
-# CAMBIAR SOLO ESTA LÍNEA
+# Variables seleccionadas
 # ========================
-selected_vars <- c("socio", "año", "IGL_total", "AbsPC", "dist",
-                   "LDEP", "contig", "Dcrisis", "IED", "avg_price","Grado_apertura")
+selected_vars <- c("socio", "año", "AbsPC", "avg_price", "contig", "Dcrisis", "dist", "Grado_apertura", "IEDPIB", "LDEP", "gdp_o", "gdp_d", "DIF_KL", "IGL_total")
 
 # ========================
-# Preprocesamiento general
+# Preprocesamiento y transformación de datos
 # ========================
 data <- data[, selected_vars]
-data <- na.omit(data)
+#data <- na.omit(data)
 
-# Crear variables transformadas automáticamente si existen
-#if ("gdp_o" %in% names(data)) data$log_gdp_o <- log(data$gdp_o)
-#if ("gdp_d" %in% names(data)) data$log_gdp_d <- log(data$gdp_d)
-#if ("IED"   %in% names(data)) data$log_IED   <- log(data$IED + 1)
+# Crear variables transformadas logarítmicas
+if ("gdp_o" %in% names(data)) data$log_gdp_o <- log(data$gdp_o)
+if ("gdp_d" %in% names(data)) data$log_gdp_d <- log(data$gdp_d)
 
 # Reordenar por panel
 if (all(c("socio", "año") %in% names(data))) {
@@ -43,6 +41,9 @@ if (all(c("socio", "año") %in% names(data))) {
 } else {
   stop("Las variables 'socio' y 'año' son necesarias para definir el panel.")
 }
+
+# Balancear el panel. Esto inserta filas con NA para los datos que faltan.
+#pdata_balanced <- make.pbalanced(pdata_unbalanced)
 
 # ========================
 # Matriz de correlación
@@ -59,27 +60,33 @@ corrplot(cor_matrix, method = "color", type = "upper",
 # Modelo System GMM
 # ========================
 
+# Definimos los regresores del modelo
+# usamos las variables seleccionadas y transformadas.
 regresores <- c(
-  "lag(IGL_total, 1)",  # Modelo dinámico
   "AbsPC",
   "dist",
   "Grado_apertura",
   "LDEP",
   "contig",
   "Dcrisis",
-  "IED",
-  "avg_price"
+  "avg_price",
+  "log_gdp_o",    # Usamos la variable transformada
+  "log_gdp_d",    # Usamos la variable transformada
+  "IEDPIB"
 )
 
 # Fórmula para System GMM
+# Se mantiene el rezago de IGL_total como variable dependiente rezagada.
+# Los instrumentos se adaptan a la variable dependiente rezagada.
 formula_gmm <- as.formula(paste(
-  "IGL_total ~", paste(regresores, collapse = " + "), 
-  "| lag(IGL_total, 2:4)"  # Instrumentos para la variable rezagada
+  "IGL_total ~", paste(regresores, collapse = " + "),
+  "| lag(IGL_total, 2) + ", # Instrumentos para la variable dependiente rezagada
+  "log_gdp_o + log_gdp_d" # Ejemplo de adición de instrumentos externos si es necesario
 ))
 
 modelo_gmm <- pgmm(
   formula = formula_gmm,
-  data = pdata,
+  data = pdata_balanced,
   effect = "individual",
   model = "twosteps",
   transformation = "ld"
@@ -95,4 +102,3 @@ print(modelo_gmm$sargan)
 print("Test de autocorrelación:")
 print(mtest(modelo_gmm, order = 1))
 print(mtest(modelo_gmm, order = 2))
-
