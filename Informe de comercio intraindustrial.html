@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Análisis del Comercio Intraindustrial</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Warm Neutrals -->
+    <!-- Application Structure Plan: Se ha diseñado una aplicación de una sola página con una estructura temática y navegación fija para facilitar el acceso a la información. En lugar de un informe lineal, se utilizan componentes interactivos (sliders, gráficos dinámicos, pestañas y tarjetas interactivas) para guiar al usuario desde los conceptos básicos (definición, índices) hasta los más complejos (modelos econométricos, desafíos). Esta arquitectura centrada en el usuario busca transformar un tema académico denso en una experiencia de aprendizaje intuitiva y atractiva, permitiendo al usuario explorar los temas en el orden que prefiera y profundizar en los puntos de interés. -->
+    <!-- Visualization & Content Choices: 
+        1. Diagrama Comparativo (HTML/CSS): Informar -> Diferenciar comercio inter vs. intra -> Diagrama de cajas -> Estático -> Claridad visual superior al texto.
+        2. Índice GL con Slider y Gráfico Donut (JS/Chart.js): Informar/Comparar -> Explicar el rango y significado del índice GL -> Slider interactivo actualizando un gráfico de donut y texto -> El usuario explora la relación causa-efecto -> Hace tangible una fórmula abstracta.
+        3. Determinantes en Gráfico de Burbujas (Chart.js): Organizar/Informar -> Presentar los factores que impulsan el CII -> Gráfico de burbujas -> Clic en burbuja para ver detalles -> Visualmente más atractivo que una lista y fomenta la exploración.
+        4. Modelos y Desafíos en Pestañas/Tarjetas (HTML/JS): Organizar/Informar -> Separar y explicar problemas técnicos complejos -> Componentes de UI estándar (pestañas, tarjetas clicables) -> Clic para revelar contenido -> Estructura la información compleja de forma clara y concisa.
+        5. Casos de Estudio en Tarjetas Expandibles (HTML/JS): Informar/Comparar -> Mostrar ejemplos del mundo real -> Tarjetas con botón "Ver más" -> Clic para expandir -> Permite al usuario escanear los casos y profundizar solo en los que le interesan.
+        Se utilizan Chart.js para gráficos en Canvas y HTML/Tailwind/JS para los demás elementos interactivos. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #FDFBF7;
+            color: #3D3D3D;
+        }
+        .nav-link {
+            transition: color 0.3s, border-bottom-color 0.3s;
+            border-bottom: 2px solid transparent;
+        }
+        .nav-link:hover, .nav-link.active {
+            color: #6D8A96;
+            border-bottom-color: #6D8A96;
+        }
+        .card {
+            background-color: #FFFFFF;
+            border: 1px solid #E5E7EB;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+        }
+        .tab-button {
+            transition: all 0.3s;
+        }
+        .tab-button.active {
+            background-color: #6D8A96;
+            color: #FFFFFF;
+        }
+        .problem-card .solution {
+            display: none;
+        }
+        .problem-card.flipped .problem {
+            display: none;
+        }
+        .problem-card.flipped .solution {
+            display: block;
+        }
+        .chart-container {
+            position: relative; 
+            width: 100%; 
+            max-width: 400px; 
+            margin-left: auto; 
+            margin-right: auto; 
+            height: 300px;
+            max-height: 350px;
+        }
+        @media (min-width: 768px) { 
+            .chart-container { 
+                height: 350px; 
+            } 
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <header class="sticky top-0 bg-white/80 backdrop-blur-lg shadow-sm z-50">
+        <nav class="container mx-auto px-6 py-3">
+            <div class="flex justify-between items-center">
+                <h1 class="text-xl md:text-2xl font-bold text-gray-800">Explorador de Comercio Intraindustrial</h1>
+                <div class="hidden md:flex space-x-8">
+                    <a href="#introduccion" class="nav-link pb-1">Introducción</a>
+                    <a href="#indices" class="nav-link pb-1">Índices</a>
+                    <a href="#determinantes" class="nav-link pb-1">Determinantes</a>
+                    <a href="#modelos" class="nav-link pb-1">Modelos</a>
+                    <a href="#desafios" class="nav-link pb-1">Desafíos</a>
+                    <a href="#casos" class="nav-link pb-1">Casos de Estudio</a>
+                </div>
+                <div class="md:hidden">
+                    <select id="mobile-nav" class="bg-gray-200 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5">
+                        <option value="#introduccion">Introducción</option>
+                        <option value="#indices">Índices</option>
+                        <option value="#determinantes">Determinantes</option>
+                        <option value="#modelos">Modelos</option>
+                        <option value="#desafios">Desafíos</option>
+                        <option value="#casos">Casos de Estudio</option>
+                    </select>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mx-auto px-6 py-12">
+        
+        <section id="introduccion" class="mb-20 text-center">
+            <h2 class="text-3xl font-bold mb-4 text-[#6D8A96]">¿Qué es el Comercio Intraindustrial?</h2>
+            <p class="max-w-3xl mx-auto text-lg text-gray-600 mb-8">
+                El comercio intraindustrial (CII) es el intercambio de productos similares que pertenecen a la misma industria. Piense en Alemania exportando BMWs a Francia, mientras Francia exporta Peugeots a Alemania. Este fenómeno, crucial en el comercio moderno, contrasta con el comercio interindustrial tradicional, donde se intercambian productos de diferentes industrias.
+            </p>
+            <div class="flex flex-col md:flex-row justify-center gap-8">
+                <div class="card p-6 w-full md:w-1/2">
+                    <h3 class="text-2xl font-semibold mb-3">Comercio <span class="text-red-500">INTER</span>-industrial</h3>
+                    <p class="mb-4">Basado en ventajas comparativas. Un país exporta lo que produce eficientemente e importa lo que no.</p>
+                    <div class="flex items-center justify-around text-4xl">
+                        <span>🇨🇴 ☕️</span>
+                        <span class="text-2xl font-mono text-red-500">&lrarr;</span>
+                        <span>🇺🇸 💻</span>
+                    </div>
+                    <p class="mt-4 font-semibold">Ej: Colombia exporta café a EEUU e importa computadoras.</p>
+                </div>
+                <div class="card p-6 w-full md:w-1/2">
+                    <h3 class="text-2xl font-semibold mb-3">Comercio <span class="text-green-500">INTRA</span>-industrial</h3>
+                    <p class="mb-4">Basado en economías de escala y diferenciación de productos.</p>
+                     <div class="flex items-center justify-around text-4xl">
+                        <span>🇩🇪 🚗</span>
+                        <span class="text-2xl font-mono text-green-500">&lrarr;</span>
+                        <span>🇫🇷 🚙</span>
+                    </div>
+                    <p class="mt-4 font-semibold">Ej: Alemania y Francia intercambian automóviles de diferentes marcas.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="indices" class="mb-20">
+            <h2 class="text-3xl font-bold mb-8 text-center text-[#6D8A96]">¿Cómo se Mide el Comercio Intraindustrial?</h2>
+            <p class="max-w-3xl mx-auto text-lg text-gray-600 mb-12 text-center">
+                Para cuantificar este fenómeno, los economistas utilizan principalmente el Índice de Grubel-Lloyd (GL). Este índice nos dice qué porción del comercio total es intraindustrial. Explore su funcionamiento de manera interactiva a continuación.
+            </p>
+            <div class="card p-6 md:p-8">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                    <div>
+                        <h3 class="text-2xl font-semibold mb-4">Índice de Grubel-Lloyd (GL)</h3>
+                        <p class="mb-4">La fórmula calcula la proporción del comercio que no es interindustrial. Un valor cercano a 1 indica un alto nivel de comercio intraindustrial, mientras que un valor cercano a 0 significa que predomina el comercio interindustrial.</p>
+                        <div class="bg-gray-100 p-4 rounded-lg text-center font-mono text-sm md:text-base mb-6">
+                            GL<sub>i</sub> = 1 - [ |X<sub>i</sub> - M<sub>i</sub>| / (X<sub>i</sub> + M<sub>i</sub>) ]
+                        </div>
+                        <label for="gl-slider" class="block mb-2 font-semibold">Simulador de Índice GL:</label>
+                        <input id="gl-slider" type="range" min="0" max="1" step="0.01" value="0.75" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                        <div class="flex justify-between text-sm mt-1">
+                            <span>0 (Interindustrial)</span>
+                            <span>1 (Intraindustrial)</span>
+                        </div>
+                    </div>
+                    <div class="text-center">
+                        <div class="chart-container">
+                            <canvas id="gl-chart"></canvas>
+                        </div>
+                        <p id="gl-text" class="mt-4 text-lg font-semibold"></p>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <section id="determinantes" class="mb-20">
+            <h2 class="text-3xl font-bold mb-8 text-center text-[#6D8A96]">¿Qué Impulsa el Comercio Intraindustrial?</h2>
+            <p class="max-w-3xl mx-auto text-lg text-gray-600 mb-12 text-center">
+                Diversos factores a nivel de país e industria explican la existencia y la intensidad del CII. El siguiente gráfico de burbujas muestra los determinantes clave. Haga clic en cada burbuja para obtener más detalles sobre su impacto.
+            </p>
+            <div class="card p-6 md:p-8">
+                <div id="determinants-chart-container" class="w-full h-[500px] relative">
+                    <canvas id="determinants-chart"></canvas>
+                </div>
+            </div>
+            <div id="determinant-details" class="mt-6 p-6 bg-white rounded-lg border border-gray-200" style="display: none;">
+                <h3 id="details-title" class="text-xl font-bold mb-2"></h3>
+                <p id="details-text"></p>
+            </div>
+        </section>
+        
+        <section id="modelos" class="mb-20">
+            <h2 class="text-3xl font-bold mb-8 text-center text-[#6D8A96]">¿Cómo se Estima y Analiza?</h2>
+            <p class="max-w-3xl mx-auto text-lg text-gray-600 mb-12 text-center">
+                Para establecer los determinantes del CII, los economistas emplean modelos econométricos. Los más comunes son los modelos de gravedad y los análisis con datos de panel, que permiten controlar por una gran cantidad de variables.
+            </p>
+            <div class="card p-6 md:p-8">
+                <div class="flex border-b border-gray-200 mb-6">
+                    <button class="tab-button flex-1 py-2 px-4 font-semibold text-gray-600 active" data-tab="gravedad">Modelo de Gravedad</button>
+                    <button class="tab-button flex-1 py-2 px-4 font-semibold text-gray-600" data-tab="panel">Datos de Panel</button>
+                </div>
+                <div id="gravedad-content" class="tab-content">
+                    <h3 class="text-2xl font-semibold mb-3">El Modelo de Gravedad</h3>
+                    <p class="mb-4">Inspirado en la ley de Newton, este modelo es el pilar del análisis comercial. Postula que el comercio entre dos países es directamente proporcional al tamaño de sus economías (usualmente medido por el PIB) e inversamente proporcional a la distancia entre ellos. Es el punto de partida para analizar los determinantes del CII.</p>
+                    <div class="bg-gray-100 p-4 rounded-lg text-center font-mono text-sm md:text-base">
+                        CII<sub>ij</sub> = f(PIB<sub>i</sub>, PIB<sub>j</sub>, Distancia<sub>ij</sub>, Otros Factores)
+                    </div>
+                </div>
+                <div id="panel-content" class="tab-content hidden">
+                    <h3 class="text-2xl font-semibold mb-3">El Poder de los Datos de Panel</h3>
+                    <p class="mb-4">Los datos de panel (que combinan series de tiempo con datos de corte transversal para múltiples países/industrias a lo largo del tiempo) son extremadamente útiles. Permiten controlar por características inobservables que no cambian en el tiempo (como la cultura o la geografía) mediante "efectos fijos". Esto ayuda a aislar de manera más precisa el impacto de las variables de interés sobre el CII.</p>
+                    <ul class="list-disc list-inside space-y-2">
+                        <li><strong>Modelos Estáticos:</strong> Efectos fijos y aleatorios.</li>
+                        <li><strong>Modelos Dinámicos (GMM):</strong> Tienen en cuenta que el comercio pasado puede influir en el comercio presente, abordando problemas de persistencia.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section id="desafios" class="mb-20">
+            <h2 class="text-3xl font-bold mb-8 text-center text-[#6D8A96]">Desafíos en la Estimación y sus Soluciones</h2>
+            <p class="max-w-3xl mx-auto text-lg text-gray-600 mb-12 text-center">
+                Estimar los determinantes del CII no está exento de dificultades econométricas. Afortunadamente, se han desarrollado métodos para abordar estos problemas. Haga clic en cada tarjeta para ver el problema y su solución.
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="problem-card card" data-problem="ceros">
+                    <div class="p-6 problem">
+                        <h3 class="text-xl font-bold mb-3">Problema de los Ceros</h3>
+                        <p>Cuando no hay comercio entre dos países en una industria, el valor es cero. Los modelos de gravedad tradicionales usan logaritmos, y log(0) no está definido. Ignorar estos ceros crea un sesgo de selección.</p>
+                        <button class="mt-4 text-[#6D8A96] font-semibold">Ver Solución &rarr;</button>
+                    </div>
+                    <div class="p-6 solution">
+                        <h3 class="text-xl font-bold mb-3">Solución: PPML</h3>
+                        <p>El estimador de Poisson Pseudo-Máxima Verosimilitud (PPML) de Santos Silva & Tenreyro (2006) es la solución estándar. No requiere logaritmos, por lo que maneja los ceros de forma natural y es robusto a la heterocedasticidad.</p>
+                        <button class="mt-4 text-[#6D8A96] font-semibold">&larr; Ver Problema</button>
+                    </div>
+                </div>
+                <div class="problem-card card" data-problem="endogeneidad">
+                     <div class="p-6 problem">
+                        <h3 class="text-xl font-bold mb-3">Endogeneidad</h3>
+                        <p>Puede haber causalidad inversa. Por ejemplo, ¿un acuerdo comercial aumenta el CII, o un alto CII impulsa la firma del acuerdo? Si es así, las estimaciones de MCO son sesgadas.</p>
+                        <button class="mt-4 text-[#6D8A96] font-semibold">Ver Solución &rarr;</button>
+                    </div>
+                    <div class="p-6 solution">
+                        <h3 class="text-xl font-bold mb-3">Solución: IV y GMM</h3>
+                        <p>Se utilizan Variables Instrumentales (IV) o estimadores de panel dinámicos como el GMM (Método Generalizado de los Momentos), que usan valores rezagados de las variables como instrumentos para corregir la endogeneidad.</p>
+                        <button class="mt-4 text-[#6D8A96] font-semibold">&larr; Ver Problema</button>
+                    </div>
+                </div>
+                <div class="problem-card card" data-problem="heterocedasticidad">
+                     <div class="p-6 problem">
+                        <h3 class="text-xl font-bold mb-3">Heterocedasticidad</h3>
+                        <p>La varianza de los errores del modelo no es constante. En los modelos de comercio, los flujos comerciales de países grandes tienden a tener más varianza que los de países pequeños. Esto afecta la eficiencia de las estimaciones.</p>
+                        <button class="mt-4 text-[#6D8A96] font-semibold">Ver Solución &rarr;</button>
+                    </div>
+                    <div class="p-6 solution">
+                        <h3 class="text-xl font-bold mb-3">Solución: Errores y PPML</h3>
+                        <p>Se pueden usar errores estándar robustos. Sin embargo, el estimador PPML también es inherentemente robusto a la presencia de heterocedasticidad, lo que lo convierte en una solución integral para múltiples problemas.</p>
+                        <button class="mt-4 text-[#6D8A96] font-semibold">&larr; Ver Problema</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="casos" class="mb-12">
+            <h2 class="text-3xl font-bold mb-8 text-center text-[#6D8A96]">Casos de Estudio Relevantes</h2>
+            <p class="max-w-3xl mx-auto text-lg text-gray-600 mb-12 text-center">
+                El comercio intraindustrial es un fenómeno global con manifestaciones interesantes en diferentes regiones. Aquí se presentan algunos casos emblemáticos que ilustran la teoría en la práctica.
+            </p>
+            <div class="space-y-6">
+                <div class="card p-6">
+                    <h3 class="text-2xl font-semibold mb-3">🇺🇸🇲🇽🇨🇦 NAFTA/T-MEC y el Sector Automotriz</h3>
+                    <p class="text-gray-700">El acuerdo de libre comercio en América del Norte generó un altísimo nivel de CII, especialmente en la industria automotriz. Es un caso clásico de <strong>comercio intraindustrial vertical</strong>, donde diferentes etapas del proceso de producción se localizan en diferentes países (diseño en EEUU, ensamblaje en México, partes en Canadá) creando cadenas de valor integradas. Los componentes cruzan las fronteras múltiples veces antes de que el vehículo final sea vendido.</p>
+                </div>
+                <div class="card p-6">
+                    <h3 class="text-2xl font-semibold mb-3">🇪🇺 La Unión Europea y la Diferenciación de Productos</h3>
+                    <p class="text-gray-700">El mercado único europeo es quizás el mejor ejemplo de <strong>comercio intraindustrial horizontal</strong>. La eliminación de barreras comerciales y la convergencia de ingresos llevaron a un intercambio masivo de bienes similares pero diferenciados por marca, calidad o diseño. Los consumidores europeos tienen acceso a una vasta gama de productos de todos los países miembros, como autos, quesos, vinos y productos farmacéuticos, fomentando la competencia y la especialización a nivel de empresa.</p>
+                </div>
+                <div class="card p-6">
+                    <h3 class="text-2xl font-semibold mb-3">🇨🇱 Chile y su Integración con Asia</h3>
+                    <p class="text-gray-700">El caso de Chile es interesante por su estrategia de apertura comercial a través de numerosos tratados de libre comercio, incluyendo con potencias asiáticas como China, Japón y Corea del Sur. Estudios han mostrado que, si bien el comercio con Asia sigue dominado por el patrón interindustrial (Chile exporta materias primas como cobre e importa manufacturas), ha habido un crecimiento del CII en sectores específicos como alimentos procesados (salmón, vino) y algunos químicos, demostrando cómo la liberalización puede diversificar los patrones comerciales incluso en economías especializadas en recursos naturales.</p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-gray-800 text-white mt-20">
+        <div class="container mx-auto px-6 py-4 text-center">
+            <p>&copy; 2025 Explorador de Comercio Intraindustrial. Creado con fines educativos.</p>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const glSlider = document.getElementById('gl-slider');
+            const glText = document.getElementById('gl-text');
+            const glCtx = document.getElementById('gl-chart').getContext('2d');
+            let glChart;
+
+            function updateGlChart(value) {
+                const percentage = (value * 100).toFixed(0);
+                const data = {
+                    labels: ['Intraindustrial', 'Interindustrial'],
+                    datasets: [{
+                        data: [value, 1 - value],
+                        backgroundColor: ['#6D8A96', '#D2B48C'],
+                        borderColor: '#FDFBF7',
+                        borderWidth: 4,
+                    }]
+                };
+                if (glChart) {
+                    glChart.data = data;
+                    glChart.update();
+                } else {
+                    glChart = new Chart(glCtx, {
+                        type: 'doughnut',
+                        data: data,
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom',
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            return `${context.label}: ${(context.raw * 100).toFixed(0)}%`;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+                glText.textContent = `Índice GL = ${value.toFixed(2)}. El ${percentage}% del comercio es intraindustrial.`;
+            }
+
+            glSlider.addEventListener('input', (e) => {
+                updateGlChart(parseFloat(e.target.value));
+            });
+
+            updateGlChart(parseFloat(glSlider.value));
+
+            const determinantsData = {
+                datasets: [{
+                    label: 'Determinantes del CII',
+                    data: [
+                        { x: 2, y: 7, r: 28, label: 'Diferenciación de Productos' },
+                        { x: 7, y: 8, r: 25, label: 'Similitud de Ingresos' },
+                        { x: 8, y: 3, r: 22, label: 'Tamaño del Mercado' },
+                        { x: 3, y: 2, r: 20, label: 'Economías de Escala' },
+                        { x: 5, y: 5, r: 18, label: 'Apertura Comercial' },
+                        { x: 9, y: 6, r: 15, label: 'Inversión Extranjera (IED)' },
+                        { x: 1, y: 4, r: 12, label: 'Baja Distancia Geográfica' }
+                    ],
+                    backgroundColor: '#6D8A96',
+                    hoverBackgroundColor: '#57727c'
+                }]
+            };
+
+            const determinantsDetails = {
+                'Diferenciación de Productos': 'Es el motor principal. Permite que países intercambien variedades de un mismo producto (ej. autos de diferentes marcas). Puede ser horizontal (diferente diseño) o vertical (diferente calidad).',
+                'Similitud de Ingresos': 'Países con niveles de PIB per cápita similares tienden a tener patrones de demanda parecidos, lo que fomenta el intercambio de productos diferenciados para satisfacer gustos variados.',
+                'Tamaño del Mercado': 'Mercados más grandes (medidos por el PIB) permiten a las empresas aprovechar mejor las economías de escala y ofrecer una mayor variedad de productos, lo que estimula el CII.',
+                'Economías de Escala': 'Cuando el costo por unidad disminuye al aumentar la producción, las empresas se especializan en variedades específicas de un producto para exportar, mientras el país importa otras variedades.',
+                'Apertura Comercial': 'La reducción de aranceles y barreras no arancelarias facilita el intercambio de bienes, incluyendo los de la misma industria. Los acuerdos comerciales son un gran impulsor.',
+                'Inversión Extranjera (IED)': 'La IED, especialmente la vertical, crea cadenas de valor transfronterizas. Una multinacional puede producir componentes en un país y ensamblarlos en otro, generando un alto CII.',
+                'Baja Distancia Geográfica': 'Menores costos de transporte facilitan el comercio en general, incluido el CII. Compartir una frontera es un factor muy importante.'
+            };
+            
+            const detailsContainer = document.getElementById('determinant-details');
+            const detailsTitle = document.getElementById('details-title');
+            const detailsText = document.getElementById('details-text');
+            
+            const determinantsCtx = document.getElementById('determinants-chart').getContext('2d');
+            new Chart(determinantsCtx, {
+                type: 'bubble',
+                data: determinantsData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                             callbacks: {
+                                label: function(context) {
+                                    return context.raw.label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { display: false },
+                        y: { display: false }
+                    },
+                    onClick: (e, elements) => {
+                        if (elements.length > 0) {
+                            const index = elements[0].index;
+                            const label = determinantsData.datasets[0].data[index].label;
+                            detailsTitle.textContent = label;
+                            detailsText.textContent = determinantsDetails[label];
+                            detailsContainer.style.display = 'block';
+                            detailsContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                    }
+                }
+            });
+
+            const tabs = document.querySelectorAll('.tab-button');
+            const tabContents = document.querySelectorAll('.tab-content');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    tabContents.forEach(content => {
+                        content.classList.add('hidden');
+                    });
+                    document.getElementById(tab.dataset.tab + '-content').classList.remove('hidden');
+                });
+            });
+
+            const problemCards = document.querySelectorAll('.problem-card');
+            problemCards.forEach(card => {
+                card.addEventListener('click', () => {
+                    card.classList.toggle('flipped');
+                });
+            });
+            
+            const navLinks = document.querySelectorAll('.nav-link');
+            const mobileNav = document.getElementById('mobile-nav');
+
+            function setActiveLink() {
+                let current = '';
+                const sections = document.querySelectorAll('section');
+                sections.forEach(section => {
+                    const sectionTop = section.offsetTop;
+                    if (pageYOffset >= sectionTop - 80) {
+                        current = section.getAttribute('id');
+                    }
+                });
+
+                navLinks.forEach(link => {
+                    link.classList.remove('active');
+                    if (link.getAttribute('href') === `#${current}`) {
+                        link.classList.add('active');
+                    }
+                });
+                if(mobileNav.value !== `#${current}`){
+                    mobileNav.value = `#${current}`;
+                }
+            }
+            
+            mobileNav.addEventListener('change', (e) => {
+                window.location.hash = e.target.value;
+            });
+
+            window.addEventListener('scroll', setActiveLink);
+            setActiveLink();
+        });
+    </script>
+</body>
+</html>
